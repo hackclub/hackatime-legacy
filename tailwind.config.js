@@ -19,7 +19,7 @@ module.exports = {
                 normal: '400',
                 bold: '700',
             },
-            colors: {
+            colors: { //.select-default {bg => 0.79 0.09 200.01}
                 text: {
                     primary: 'oklch(26.33% 0.040 91.04)',
                     secondary: 'oklch(43.57% 0.028 90.91)',
@@ -30,13 +30,13 @@ module.exports = {
                     secondary: 'oklch(79.23% 0.024 90.79)',
                     tertiary: 'oklch(62.3% 0.015 93.07)',
                 },
-                background: 'oklch(87.84% 0.001 197.14)',
+                background: 'oklch(1 0 0)', //done 
                 'background-dark': 'oklch(31.00% 0.007 229.04)',
-                primary: 'oklch(73.01% 0.146 74.32)',
+                primary: 'oklch(60% 0.09 235.71)',  //.6 0.19 22.79
                 'primary-dark': 'oklch(65.87% 0.146 74.32)',
                 secondary: {
-                    primary: 'oklch(75.31% 0.040 200.43)',
-                    secondary: 'oklch(66.14% 0.04 200.43)',
+                    primary: 'oklch(0.82 0.09 200.01)', //done
+                    secondary: 'oklch(95% 0 0)', //done 
                     tertiary: 'oklch(57.44% 0.04 200.43)',
                 },
                 'secondary-dark': {

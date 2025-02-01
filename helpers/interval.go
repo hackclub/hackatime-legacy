@@ -80,7 +80,7 @@ func ResolveIntervalTZ(interval *models.IntervalKey, tz *time.Location) (err err
 	case models.IntervalHighSeas:
 		est, _ := time.LoadLocation("America/New_York")
 		from = time.Date(2024, 10, 30, 0, 0, 0, 0, time.Local)
-		to = time.Date(2025, 1, 31, 0, 0, 0, 0, est)
+		to = time.Date(2025, 1, 31, 23, 59, 59, 0, est)
 	default:
 		err = errors.New("invalid interval")
 	}

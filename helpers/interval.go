@@ -4,6 +4,8 @@ import (
 	"errors"
 	"time"
 
+	_ "time/tzdata"
+
 	"github.com/hackclub/hackatime/models"
 	"github.com/hackclub/hackatime/utils"
 )

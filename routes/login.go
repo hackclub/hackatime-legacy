@@ -436,10 +436,10 @@ func (h *LoginHandler) PostResetPassword(w http.ResponseWriter, r *http.Request)
 
 			go func(user *models.User) {
 				link := fmt.Sprintf("%s/set-password?token=%s", h.config.Server.GetPublicUrl(), user.ResetToken)
-				if h.config.Security.AirtableAPIKey != "" && resetRequest.Slack && strings.HasPrefix(user.ID, "U") {
-					msgtext := fmt.Sprintf("Arr `%s`! Looks liek ye requested a password reset from hackatime for the email `%s`! If ye didn't request this then sombardy is trying to hack thee account and you should steer clear of below button :tw_crossed_swords:", func() string {
+				if h.config.Security.HackatimeMessageQueueAPIKey != "" && resetRequest.Slack && strings.HasPrefix(user.ID, "U") {
+					msgtext := fmt.Sprintf("Hi there `%s`! :hyper-dino-wave:\n\nI received a password reset request for the email `%s`. If you didn't request this, please ignore this message!", func() string {
 						if user.Name == "" {
-							return "matey"
+							return "spelunker"
 						} else {
 							return user.Name
 						}
@@ -454,21 +454,16 @@ func (h *LoginHandler) PostResetPassword(w http.ResponseWriter, r *http.Request)
 							}
 						},
 						{
-							"type": "actions",
+							"type": "context",
 							"elements": [
 								{
-									"type": "button",
-									"text": {
-										"type": "plain_text",
-										"text": "Reset Password"
-									},
-									"style": "primary",
-									"url": "` + link + `"
+									"type": "mrkdwn",
+									"text": "reset link: \u0060` + link + `\u0060"
 								}
 							]
 						}
 					]`
-					if err := utils.SendSlackMessage(h.config.Security.AirtableAPIKey, user.ID, msg, blocks); err != nil {
+					if err := utils.SendSlackMessage(h.config.Security.HackatimeMessageQueueAPIKey, user.ID, msg, blocks); err != nil {
 						conf.Log().Request(r).Error("failed to send slack message", "error", err)
 					} else {
 						slog.Info("sent slack message", "userID", user.ID)
@@ -504,7 +499,7 @@ func (h *LoginHandler) buildViewModel(r *http.Request, w http.ResponseWriter, wi
 		TotalUsers:      int(numUsers),
 		AllowSignup:     h.config.IsDev() || h.config.Security.AllowSignup,
 		InviteCode:      r.URL.Query().Get("invite"),
-		SlackEnabled:    h.config.Security.AirtableAPIKey != "",
+		SlackEnabled:    h.config.Security.HackatimeMessageQueueAPIKey != "",
 	}
 
 	if withCaptcha {

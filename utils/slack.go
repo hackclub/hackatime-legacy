@@ -8,21 +8,11 @@ import (
 	"net/http"
 )
 
-func SendSlackMessage(airtableAPIKey string, userID string, message string, blocksJSON string) error {
-	record := map[string]interface{}{
-		"fields": map[string]interface{}{
-			"requester_identifier": "Hackatime Reset Password",
-			"target_slack_id":      userID,
-			"message_text":         message,
-			"message_blocks":       blocksJSON,
-			"unfurl_links":         true,
-			"unfurl_media":         true,
-			"send_success":         false,
-		},
-	}
-
-	payload := map[string]interface{}{
-		"records": []interface{}{record},
+func SendSlackMessage(hackatimeMessageQueueAPIKey string, userID string, message string, blocksJSON string) error {
+	payload := map[string]any{
+		"channel": userID,
+		"text":    message,
+		"blocks":  blocksJSON,
 	}
 
 	jsonPayload, err := json.Marshal(payload)
@@ -30,14 +20,14 @@ func SendSlackMessage(airtableAPIKey string, userID string, message string, bloc
 		return fmt.Errorf("error marshaling payload: %v", err)
 	}
 
-	req, err := http.NewRequest("POST", "https://middleman.hackclub.com/airtable/v0/appTeNFYcUiYfGcR6/arrpheus_message_requests", bytes.NewBuffer(jsonPayload))
+	req, err := http.NewRequest("POST", "https://hackatime-bot.kierank.hackclub.app/slack/message", bytes.NewBuffer(jsonPayload))
 	if err != nil {
 		return fmt.Errorf("error creating request: %v", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Authorization", "Bearer "+airtableAPIKey)
+	req.Header.Set("Authorization", "Bearer "+hackatimeMessageQueueAPIKey)
 	req.Header.Set("User-Agent", "waka.hackclub.com (reset password)")
 
 	client := &http.Client{}
@@ -65,7 +55,7 @@ func SendSlackMessage(airtableAPIKey string, userID string, message string, bloc
 	}
 
 	if result.Error.Type != "" {
-		return fmt.Errorf("Airtable error: %s - %s", result.Error.Type, result.Error.Message)
+		return fmt.Errorf("Hackatime message queue error: %s - %s", result.Error.Type, result.Error.Message)
 	}
 
 	return nil

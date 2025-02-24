@@ -1,4 +1,9 @@
 definitions:
+  models.ApiKey:
+    properties:
+      apiKey:
+        type: string
+    type: object
   models.Diagnostics:
     properties:
       architecture:
@@ -28,8 +33,6 @@ definitions:
     type: object
   models.Heartbeat:
     properties:
-      Entity:
-        type: string
       branch:
         type: string
       category:
@@ -37,15 +40,27 @@ definitions:
       created_at:
         description: https://gorm.io/docs/conventions.html#CreatedAt
         type: number
+      cursorpos:
+        type: integer
+      dependencies:
+        items:
+          type: string
+        type: array
       editor:
         description: ignored because editor might be parsed differently by wakatime
         type: string
-      id:
-        type: integer
+      entity:
+        type: string
       is_write:
         type: boolean
       language:
         type: string
+      line_additions:
+        type: integer
+      line_deletions:
+        type: integer
+      lineno:
+        type: integer
       lines:
         type: integer
       machine:
@@ -186,6 +201,14 @@ definitions:
         type: string
       created_at:
         type: string
+      cursorpos:
+        type: integer
+      dependencies:
+        items:
+          type: string
+        type: array
+      editor:
+        type: string
       entity:
         type: string
       id:
@@ -194,10 +217,22 @@ definitions:
         type: boolean
       language:
         type: string
+      line_additions:
+        type: integer
+      line_deletions:
+        type: integer
+      lineno:
+        type: integer
+      lines:
+        type: integer
       machine_name_id:
+        type: string
+      operating_system:
         type: string
       project:
         type: string
+      project_root_count:
+        type: integer
       time:
         type: number
       type:
@@ -1136,6 +1171,27 @@ paths:
       summary: Proxy an PUT API request to another Wakapi instance
       tags:
       - relay
+  /special/apikey:
+    get:
+      operationId: get-apikey
+      parameters:
+      - description: The user to filter by if using Bearer authentication and the
+          admin token
+        in: query
+        name: user
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ApiKey'
+      security:
+      - ApiKeyAuth: []
+      summary: Retrieve a users API key
+      tags:
+      - apikey
   /special/email:
     get:
       operationId: get-email
@@ -1201,6 +1257,7 @@ paths:
         - any
         - all_time
         - low_skies
+        - high_seas
         in: query
         name: interval
         type: string

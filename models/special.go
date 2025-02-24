@@ -7,3 +7,7 @@ type Email struct {
 type HasData struct {
 	HasData bool `json:"hasData"`
 }
+
+type ApiKey struct {
+	ApiKey string `json:"apiKey"`
+}

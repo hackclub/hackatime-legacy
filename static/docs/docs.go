@@ -860,6 +860,39 @@ const docTemplate = `{
                 }
             }
         },
+        "/special/apikey": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "apikey"
+                ],
+                "summary": "Retrieve a users API key",
+                "operationId": "get-apikey",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "The user to filter by if using Bearer authentication and the admin token",
+                        "name": "user",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.ApiKey"
+                        }
+                    }
+                }
+            }
+        },
         "/special/email": {
             "get": {
                 "security": [
@@ -960,7 +993,8 @@ const docTemplate = `{
                             "last_year",
                             "any",
                             "all_time",
-                            "low_skies"
+                            "low_skies",
+                            "high_seas"
                         ],
                         "type": "string",
                         "description": "Interval identifier",
@@ -1241,6 +1275,14 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "models.ApiKey": {
+            "type": "object",
+            "properties": {
+                "apiKey": {
+                    "type": "string"
+                }
+            }
+        },
         "models.Diagnostics": {
             "type": "object",
             "properties": {
@@ -1286,9 +1328,6 @@ const docTemplate = `{
         "models.Heartbeat": {
             "type": "object",
             "properties": {
-                "Entity": {
-                    "type": "string"
-                },
                 "branch": {
                     "type": "string"
                 },
@@ -1299,18 +1338,36 @@ const docTemplate = `{
                     "description": "https://gorm.io/docs/conventions.html#CreatedAt",
                     "type": "number"
                 },
+                "cursorpos": {
+                    "type": "integer"
+                },
+                "dependencies": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "editor": {
                     "description": "ignored because editor might be parsed differently by wakatime",
                     "type": "string"
                 },
-                "id": {
-                    "type": "integer"
+                "entity": {
+                    "type": "string"
                 },
                 "is_write": {
                     "type": "boolean"
                 },
                 "language": {
                     "type": "string"
+                },
+                "line_additions": {
+                    "type": "integer"
+                },
+                "line_deletions": {
+                    "type": "integer"
+                },
+                "lineno": {
+                    "type": "integer"
                 },
                 "lines": {
                     "type": "integer"
@@ -1504,6 +1561,18 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
+                "cursorpos": {
+                    "type": "integer"
+                },
+                "dependencies": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "editor": {
+                    "type": "string"
+                },
                 "entity": {
                     "type": "string"
                 },
@@ -1516,11 +1585,29 @@ const docTemplate = `{
                 "language": {
                     "type": "string"
                 },
+                "line_additions": {
+                    "type": "integer"
+                },
+                "line_deletions": {
+                    "type": "integer"
+                },
+                "lineno": {
+                    "type": "integer"
+                },
+                "lines": {
+                    "type": "integer"
+                },
                 "machine_name_id": {
+                    "type": "string"
+                },
+                "operating_system": {
                     "type": "string"
                 },
                 "project": {
                     "type": "string"
+                },
+                "project_root_count": {
+                    "type": "integer"
                 },
                 "time": {
                     "type": "number"

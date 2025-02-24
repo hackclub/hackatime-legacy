@@ -27,6 +27,7 @@ func (h *SpecialApiHandler) RegisterRoutes(router chi.Router) {
 	r := chi.NewRouter()
 	r.Use(middlewares.NewAuthenticateMiddleware(h.userSrvc).Handler)
 	r.Get("/email", h.GetEmail)
+	r.Get("/apikey", h.GetApiKey)
 	r.Get("/hasData", h.HasData)
 
 	router.Mount("/special", r)
@@ -48,8 +49,29 @@ func (h *SpecialApiHandler) GetEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.RespondJSON(w, r, http.StatusOK, map[string]interface{}{
+	helpers.RespondJSON(w, r, http.StatusOK, map[string]any{
 		"email": user.Email,
+	})
+}
+
+// @Summary Retrieve a users API key
+// @ID get-apikey
+// @Tags apikey
+// @Produce json
+// @Param user query string false "The user to filter by if using Bearer authentication and the admin token"
+// @Security ApiKeyAuth
+// @Success 200 {object} models.ApiKey
+// @Router /special/apikey [get]
+func (h *SpecialApiHandler) GetApiKey(w http.ResponseWriter, r *http.Request) {
+	user, err := h.userSrvc.GetUserById(r.URL.Query().Get("user"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	helpers.RespondJSON(w, r, http.StatusOK, map[string]any{
+		"apiKey": user.ApiKey,
 	})
 }
 
@@ -69,7 +91,7 @@ func (h *SpecialApiHandler) HasData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.RespondJSON(w, r, http.StatusOK, map[string]interface{}{
+	helpers.RespondJSON(w, r, http.StatusOK, map[string]any{
 		"hasData": user.HasData,
 	})
 }

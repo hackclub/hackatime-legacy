@@ -380,7 +380,9 @@ func (h *LoginHandler) PostResetPassword(w http.ResponseWriter, r *http.Request)
 		loadTemplates()
 	}
 
-	if !h.config.Mail.Enabled {
+	adminTokenReset := r.Header.Get("Authorization") == "Bearer "+h.config.Security.AdminToken
+
+	if !h.config.Mail.Enabled && !adminTokenReset {
 		w.WriteHeader(http.StatusNotImplemented)
 		templates[conf.ResetPasswordTemplate].Execute(w, h.buildViewModel(r, w, false).WithError("mailing is disabled on this server"))
 		return
@@ -389,11 +391,19 @@ func (h *LoginHandler) PostResetPassword(w http.ResponseWriter, r *http.Request)
 	var resetRequest models.ResetPasswordRequest
 	if err := r.ParseForm(); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
+		if adminTokenReset {
+			json.NewEncoder(w).Encode(map[string]string{"error": "missing parameters"})
+			return
+		}
 		templates[conf.ResetPasswordTemplate].Execute(w, h.buildViewModel(r, w, false).WithError("missing parameters"))
 		return
 	}
 	if err := resetPasswordDecoder.Decode(&resetRequest, r.PostForm); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
+		if adminTokenReset {
+			json.NewEncoder(w).Encode(map[string]string{"error": "missing parameters"})
+			return
+		}
 		templates[conf.ResetPasswordTemplate].Execute(w, h.buildViewModel(r, w, false).WithError("missing parameters"))
 		return
 	}
@@ -401,10 +411,29 @@ func (h *LoginHandler) PostResetPassword(w http.ResponseWriter, r *http.Request)
 	if user, err := h.userSrvc.GetUserByEmail(resetRequest.Email); user != nil && err == nil {
 		if u, err := h.userSrvc.GenerateResetToken(user); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
+			if adminTokenReset {
+				json.NewEncoder(w).Encode(map[string]string{"error": "failed to generate password reset token"})
+				return
+			}
 			conf.Log().Request(r).Error("failed to generate password reset token", "error", err)
 			templates[conf.ResetPasswordTemplate].Execute(w, h.buildViewModel(r, w, false).WithError("failed to generate password reset token"))
 			return
 		} else {
+			// If admin token is present, return reset token and user ID
+			if adminTokenReset {
+				response := struct {
+					UserID     string `json:"user_id"`
+					ResetToken string `json:"reset_token"`
+				}{
+					UserID:     u.ID,
+					ResetToken: u.ResetToken,
+				}
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				json.NewEncoder(w).Encode(response)
+				return
+			}
+
 			go func(user *models.User) {
 				link := fmt.Sprintf("%s/set-password?token=%s", h.config.Server.GetPublicUrl(), user.ResetToken)
 				if h.config.Security.AirtableAPIKey != "" && resetRequest.Slack && strings.HasPrefix(user.ID, "U") {
@@ -454,10 +483,17 @@ func (h *LoginHandler) PostResetPassword(w http.ResponseWriter, r *http.Request)
 		}
 	} else {
 		conf.Log().Request(r).Warn("password reset requested for unregistered address", "email", resetRequest.Email)
+		if adminTokenReset {
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
+			return
+		}
 	}
 
-	routeutils.SetSuccess(r, w, "an e-mail was sent to you in case your e-mail address was registered")
-	http.Redirect(w, r, h.config.Server.BasePath, http.StatusFound)
+	if !adminTokenReset {
+		routeutils.SetSuccess(r, w, "an e-mail was sent to you in case your e-mail address was registered")
+		http.Redirect(w, r, h.config.Server.BasePath, http.StatusFound)
+	}
 }
 
 func (h *LoginHandler) buildViewModel(r *http.Request, w http.ResponseWriter, withCaptcha bool) *view.LoginViewModel {

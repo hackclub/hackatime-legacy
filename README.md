@@ -52,6 +52,8 @@ Clone the repo run `go build` and then `./hackatime -config config.yml`. More in
 
 See our [Swagger API Documentation](https://waka.hackclub.com/swagger-ui).
 
+### Signup
+
 For signing up user programaticaly you can use the `/signup` endpoint with the admin token as Bearer and it will return a json object similar to the following:
 
 ```ts
@@ -79,6 +81,42 @@ console.log(await signup.json())
 ```
 
 If the user already exists then you will get a `true` value in the `created` field.
+
+### Reset Password
+
+For resetting a user's password programmatically, you can use the `/reset-password` endpoint with the admin token as Bearer and it will return a json object containing the reset token and user ID:
+
+```ts
+const resetPassword = await fetch('http://localhost:8888/reset-password', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer blahaji_rulz_da_world'
+  },
+  body: new URLSearchParams({
+    'email': 'test@test.com'
+  })
+});
+
+console.log(await resetPassword.json())
+```
+
+```json
+{
+  "user_id": "test",
+  "reset_token": "d4e5f6-reset-token-g7h8i9"
+}
+```
+
+If the user is not found, you will receive a 404 status code with an error message:
+
+```json
+{
+  "error": "user not found"
+}
+```
+
+The reset token can then be used with the `/set-password` endpoint to complete the password reset process.
+
 
 
 ### WakaTime integration

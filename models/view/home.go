@@ -7,7 +7,7 @@ type Newsbox struct {
 
 type HomeViewModel struct {
 	SharedViewModel
-	TotalHours int
+	TotalHours string
 	TotalUsers int
 	Newsbox    *Newsbox
 }

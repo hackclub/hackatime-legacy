@@ -60,13 +60,21 @@ func (h *HomeHandler) GetIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *HomeHandler) buildViewModel(r *http.Request, w http.ResponseWriter) *view.HomeViewModel {
-	var totalHours int
+	var totalHours string
 	var totalUsers int
 	var newsbox view.Newsbox
 
+	formatThousands := func(n int) string {
+		s := strconv.Itoa(n)
+		for i := len(s) - 3; i > 0; i -= 3 {
+			s = s[:i] + "," + s[i:]
+		}
+		return s
+	}
+
 	if kv, err := h.keyValueSrvc.GetString(conf.KeyLatestTotalTime); err == nil && kv != nil && kv.Value != "" {
 		if d, err := time.ParseDuration(kv.Value); err == nil {
-			totalHours = int(d.Hours())
+			totalHours = formatThousands(int(d.Hours()))
 		}
 	}
 

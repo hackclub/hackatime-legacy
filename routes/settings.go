@@ -707,30 +707,26 @@ func (h *SettingsHandler) actionRegenerateSummaries(w http.ResponseWriter, r *ht
 }
 
 func (h *SettingsHandler) actionClearData(w http.ResponseWriter, r *http.Request) actionResult {
-	// return error cannot delete user contact high seas support for help
-	routeutils.SetError(r, w, "Cannot clear your data. Please contact support for help.")
-	return actionResult{-1, "", "", nil}
+	if h.config.IsDev() {
+		loadTemplates()
+	}
 
-	// if h.config.IsDev() {
-	// 	loadTemplates()
-	// }
+	user := middlewares.GetPrincipal(r)
+	slog.Info("user requested to delete all data", "userID", user.ID)
 
-	// user := middlewares.GetPrincipal(r)
-	// slog.Info("user requested to delete all data", "userID", user.ID)
+	go func(user *models.User) {
+		slog.Info("deleting summaries for user", "userID", user.ID)
+		if err := h.summarySrvc.DeleteByUser(user.ID); err != nil {
+			conf.Log().Request(r).Error("failed to clear summaries", "error", err)
+		}
 
-	// go func(user *models.User) {
-	// 	slog.Info("deleting summaries for user", "userID", user.ID)
-	// 	if err := h.summarySrvc.DeleteByUser(user.ID); err != nil {
-	// 		conf.Log().Request(r).Error("failed to clear summaries", "error", err)
-	// 	}
+		slog.Info("deleting heartbeats for user", "userID", user.ID)
+		if err := h.heartbeatSrvc.DeleteByUser(user); err != nil {
+			conf.Log().Request(r).Error("failed to clear heartbeats", "error", err)
+		}
+	}(user)
 
-	// 	slog.Info("deleting heartbeats for user", "userID", user.ID)
-	// 	if err := h.heartbeatSrvc.DeleteByUser(user); err != nil {
-	// 		conf.Log().Request(r).Error("failed to clear heartbeats", "error", err)
-	// 	}
-	// }(user)
-
-	// return actionResult{http.StatusAccepted, "deletion in progress, this may take a couple of seconds", "", nil}
+	return actionResult{http.StatusAccepted, "deletion in progress, this may take a couple of seconds", "", nil}
 }
 
 func (h *SettingsHandler) actionDeleteUser(w http.ResponseWriter, r *http.Request) actionResult {

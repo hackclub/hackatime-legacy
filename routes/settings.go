@@ -734,29 +734,25 @@ func (h *SettingsHandler) actionClearData(w http.ResponseWriter, r *http.Request
 }
 
 func (h *SettingsHandler) actionDeleteUser(w http.ResponseWriter, r *http.Request) actionResult {
-	// return error cannot delete user contact high seas support for help
-	routeutils.SetError(r, w, "Cannot delete user. Please contact support for help.")
+	if h.config.IsDev() {
+		loadTemplates()
+	}
+
+	user := middlewares.GetPrincipal(r)
+	go func(user *models.User) {
+		slog.Info("deleting user shortly", "userID", user.ID)
+		time.Sleep(5 * time.Minute)
+		if err := h.userSrvc.Delete(user); err != nil {
+			conf.Log().Request(r).Error("failed to delete user", "userID", user.ID, "error", err)
+		} else {
+			slog.Info("successfully deleted user", "userID", user.ID)
+		}
+	}(user)
+
+	routeutils.SetSuccess(r, w, "Your account will be deleted in a few minutes. Sorry to see you go.")
+	http.SetCookie(w, h.config.GetClearCookie(models.AuthCookieKey))
+	http.Redirect(w, r, h.config.Server.BasePath, http.StatusFound)
 	return actionResult{-1, "", "", nil}
-
-	// if h.config.IsDev() {
-	// 	loadTemplates()
-	// }
-
-	// user := middlewares.GetPrincipal(r)
-	// go func(user *models.User) {
-	// 	slog.Info("deleting user shortly", "userID", user.ID)
-	// 	time.Sleep(5 * time.Minute)
-	// 	if err := h.userSrvc.Delete(user); err != nil {
-	// 		conf.Log().Request(r).Error("failed to delete user", "userID", user.ID, "error", err)
-	// 	} else {
-	// 		slog.Info("successfully deleted user", "userID", user.ID)
-	// 	}
-	// }(user)
-
-	// routeutils.SetSuccess(r, w, "Your account will be deleted in a few minutes. Sorry to see you go.")
-	// http.SetCookie(w, h.config.GetClearCookie(models.AuthCookieKey))
-	// http.Redirect(w, r, h.config.Server.BasePath, http.StatusFound)
-	// return actionResult{-1, "", "", nil}
 }
 
 func (h *SettingsHandler) actionGenerateInvite(w http.ResponseWriter, r *http.Request) actionResult {

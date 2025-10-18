@@ -28,11 +28,12 @@ import (
 )
 
 const (
-	TestSmtpUser   = "admin"
-	TestSmtpPass   = "admin"
-	Smtp4DevApiUrl = "http://localhost:8080/api"
-	Smtp4DevHost   = "localhost"
-	Smtp4DevPort   = 2525
+	TestSmtpUser      = "admin"
+	TestSmtpPass      = "admin"
+	Smtp4DevApiUrl    = "http://localhost:8080/api"
+	Smtp4DevHost      = "localhost"
+	Smtp4DevPort      = 2525
+	Smtp4DevTlsPort   = 2465
 )
 
 type SmtpTestSuite struct {
@@ -84,7 +85,7 @@ func (suite *SmtpTestSuite) TestSMTPSendingService_SendPlain() {
 }
 
 func (suite *SmtpTestSuite) TestSMTPSendingService_SendTLS() {
-	if err := suite.smtp4Dev.SetForcedTls(); err != nil {
+	if err := suite.smtp4Dev.SetStartTls(); err != nil {
 		suite.Error(err)
 	}
 
@@ -215,22 +216,22 @@ func (c *Smtp4DevClient) CountMessages() (int, error) {
 
 func (c *Smtp4DevClient) SetNoTls() error {
 	slog.Info("[smtp4Dev] disabling tls encryption")
-	err := c.SetConfigValue("tlsMode", "None")
-	time.Sleep(2 * time.Second)
+	err := c.SetConfigValue("ServerOptions__TlsMode", "None")
+	time.Sleep(5 * time.Second)
 	return err
 }
 
 func (c *Smtp4DevClient) SetForcedTls() error {
 	slog.Info("[smtp4Dev] enabling forced tls encryption")
-	err := c.SetConfigValue("tlsMode", "ImplicitTls")
-	time.Sleep(2 * time.Second)
+	err := c.SetConfigValue("ServerOptions__TlsMode", "ImplicitTls")
+	time.Sleep(5 * time.Second)
 	return err
 }
 
 func (c *Smtp4DevClient) SetStartTls() error {
 	slog.Info("[smtp4Dev] enabling tls encryption via starttls")
-	err := c.SetConfigValue("tlsMode", "StartTls")
-	time.Sleep(2 * time.Second)
+	err := c.SetConfigValue("ServerOptions__TlsMode", "StartTls")
+	time.Sleep(5 * time.Second)
 	return err
 }
 

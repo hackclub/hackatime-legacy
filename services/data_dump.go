@@ -1,10 +1,10 @@
 package services
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"time"
 
@@ -49,22 +49,33 @@ func NewDataDumpService(
 }
 
 func (srv *DataDumpService) GetByUser(userId string) ([]*models.DataDump, error) {
-	srv.markStuckDumps()
-	return srv.repository.GetByUser(userId)
+	dumps, err := srv.repository.GetByUser(userId)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, dump := range dumps {
+		srv.refreshDownloadURL(dump)
+	}
+
+	return dumps, nil
 }
 
-func (srv *DataDumpService) markStuckDumps() {
+func (srv *DataDumpService) MarkStuckDumps() error {
 	threshold := time.Now().Add(-dataDumpStuckThreshold)
 	stuckDumps, err := srv.repository.GetStuckDumps(threshold)
 	if err != nil {
-		config.Log().Error("failed to check for stuck data dumps", "error", err)
-		return
+		return err
 	}
 	for _, dump := range stuckDumps {
 		slog.Warn("marking data dump as stuck", "dumpID", dump.ID)
 		dump.IsStuck = true
-		srv.repository.Update(dump)
+		if _, err := srv.repository.Update(dump); err != nil {
+			return err
+		}
 	}
+
+	return nil
 }
 
 func (srv *DataDumpService) CleanupExpired() error {
@@ -75,6 +86,10 @@ func (srv *DataDumpService) CleanupExpired() error {
 
 	for _, dump := range expired {
 		slog.Info("cleaning up expired data dump", "dumpID", dump.ID, "userID", dump.UserID)
+		if err := srv.deleteObject(dump); err != nil {
+			config.Log().Error("failed to delete expired data dump object", "dumpID", dump.ID, "error", err)
+			continue
+		}
 		if err := srv.repository.Delete(dump.ID); err != nil {
 			config.Log().Error("failed to delete expired data dump", "dumpID", dump.ID, "error", err)
 		}
@@ -85,6 +100,21 @@ func (srv *DataDumpService) CleanupExpired() error {
 	}
 
 	return nil
+}
+
+func (srv *DataDumpService) DeleteByUser(userID string) error {
+	dumps, err := srv.repository.GetByUser(userID)
+	if err != nil {
+		return err
+	}
+
+	for _, dump := range dumps {
+		if err := srv.deleteObject(dump); err != nil {
+			return err
+		}
+	}
+
+	return srv.repository.DeleteByUser(userID)
 }
 
 func (srv *DataDumpService) Create(user *models.User, dumpType string) (*models.DataDump, error) {
@@ -142,110 +172,227 @@ func (srv *DataDumpService) process(dump *models.DataDump, user *models.User) {
 	dump.PercentComplete = 0
 	srv.repository.Update(dump)
 
-	var data []byte
-	var err error
-
 	if dump.Type == models.DataDumpTypeHeartbeats {
-		data, err = srv.exportHeartbeats(dump, user)
+		if err := srv.uploadHeartbeatsDump(dump, user); err != nil {
+			config.Log().Error("data dump processing failed", "dumpID", dump.ID, "error", err)
+			dump.HasFailed = true
+			dump.IsProcessing = false
+			dump.Status = models.DataDumpStatusCompleted
+			srv.repository.Update(dump)
+			return
+		}
 	} else {
-		data, err = srv.exportDaily(dump, user)
+		if err := srv.uploadDailyDump(dump, user); err != nil {
+			config.Log().Error("data dump processing failed", "dumpID", dump.ID, "error", err)
+			dump.HasFailed = true
+			dump.IsProcessing = false
+			dump.Status = models.DataDumpStatusCompleted
+			srv.repository.Update(dump)
+			return
+		}
 	}
 
-	if err != nil {
-		config.Log().Error("data dump processing failed", "dumpID", dump.ID, "error", err)
-		dump.HasFailed = true
-		dump.IsProcessing = false
-		dump.Status = models.DataDumpStatusCompleted
-		srv.repository.Update(dump)
-		return
+	dump.Status = models.DataDumpStatusCompleted
+	dump.PercentComplete = 100
+	dump.IsProcessing = false
+	srv.refreshDownloadURL(dump)
+	if _, err := srv.repository.Update(dump); err != nil {
+		config.Log().Error("failed to upload data dump", "dumpID", dump.ID, "error", err)
 	}
+
+	slog.Info("data dump completed", "dumpID", dump.ID, "userID", user.ID)
+}
+
+func (srv *DataDumpService) uploadHeartbeatsDump(dump *models.DataDump, user *models.User) error {
+	if srv.objectStorageService == nil {
+		return errors.New("object storage not configured")
+	}
+
+	from := user.CreatedAt.T()
+	to := time.Now()
+
+	dump.PercentComplete = 50
+	srv.repository.Update(dump)
+
+	reader, writer := io.Pipe()
+	defer reader.Close()
+	go func() {
+		err := srv.streamHeartbeatsExport(writer, from, to, user)
+		if err != nil {
+			_ = writer.CloseWithError(err)
+			return
+		}
+		_ = writer.Close()
+	}()
 
 	dump.Status = models.DataDumpStatusUploading
 	dump.PercentComplete = 90
 	srv.repository.Update(dump)
 
+	key := dataDumpObjectKey(user.ID, dump.ID)
+	if err := srv.objectStorageService.Upload(key, reader, "application/json"); err != nil {
+		return fmt.Errorf("failed to upload heartbeat dump: %w", err)
+	}
+
+	return nil
+}
+
+func (srv *DataDumpService) uploadDailyDump(dump *models.DataDump, user *models.User) error {
 	if srv.objectStorageService == nil {
-		config.Log().Error("object storage not configured, cannot upload data dump", "dumpID", dump.ID)
-		dump.HasFailed = true
-		dump.IsProcessing = false
-		dump.Status = models.DataDumpStatusCompleted
-		srv.repository.Update(dump)
-		return
+		return errors.New("object storage not configured")
 	}
 
-	key := fmt.Sprintf("data_dumps/%s/%s.json", user.ID, dump.ID)
-	downloadUrl, err := srv.objectStorageService.Upload(key, bytes.NewReader(data), "application/json")
-	if err != nil {
-		config.Log().Error("failed to upload data dump", "dumpID", dump.ID, "error", err)
-		dump.HasFailed = true
-		dump.IsProcessing = false
-		dump.Status = models.DataDumpStatusCompleted
-		srv.repository.Update(dump)
-		return
-	}
-
-	dump.Status = models.DataDumpStatusCompleted
-	dump.PercentComplete = 100
-	dump.DownloadUrl = downloadUrl
-	dump.IsProcessing = false
-	srv.repository.Update(dump)
-
-	slog.Info("data dump completed", "dumpID", dump.ID, "userID", user.ID)
-}
-
-func (srv *DataDumpService) exportHeartbeats(dump *models.DataDump, user *models.User) ([]byte, error) {
-	from := user.CreatedAt.T()
-	to := time.Now()
-
-	heartbeats, err := srv.heartbeatService.GetAllWithin(from, to, user)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch heartbeats: %w", err)
-	}
-
-	dump.PercentComplete = 50
-	srv.repository.Update(dump)
-
-	compatEntries := wakatime.HeartbeatsToCompat(heartbeats)
-
-	dayMap := make(map[string][]*wakatime.HeartbeatEntry)
-	for _, entry := range compatEntries {
-		day := time.Unix(int64(entry.Time), 0).Format("2006-01-02")
-		dayMap[day] = append(dayMap[day], entry)
-	}
-
-	days := make([]*wakatime.JsonExportDay, 0, len(dayMap))
-	for date, hbs := range dayMap {
-		days = append(days, &wakatime.JsonExportDay{
-			Date:       date,
-			Heartbeats: hbs,
-		})
-	}
-
-	export := &wakatime.JsonExportViewModel{
-		Range: &wakatime.JsonExportRange{
-			Start: from.Unix(),
-			End:   to.Unix(),
-		},
-		Days: days,
-	}
-
-	dump.PercentComplete = 80
-	srv.repository.Update(dump)
-
-	return json.Marshal(export)
-}
-
-func (srv *DataDumpService) exportDaily(dump *models.DataDump, user *models.User) ([]byte, error) {
 	from := user.CreatedAt.T()
 	to := time.Now()
 
 	summary, err := srv.summaryService.Retrieve(from, to, user, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve summary: %w", err)
+		return fmt.Errorf("failed to retrieve summary: %w", err)
 	}
 
 	dump.PercentComplete = 80
 	srv.repository.Update(dump)
 
-	return json.Marshal(summary)
+	dump.Status = models.DataDumpStatusUploading
+	dump.PercentComplete = 90
+	srv.repository.Update(dump)
+
+	key := dataDumpObjectKey(user.ID, dump.ID)
+	reader := jsonReader(summary)
+	defer reader.Close()
+	if err := srv.objectStorageService.Upload(key, reader, "application/json"); err != nil {
+		return fmt.Errorf("failed to upload daily dump: %w", err)
+	}
+
+	return nil
+}
+
+func (srv *DataDumpService) streamHeartbeatsExport(w io.Writer, from, to time.Time, user *models.User) error {
+	rangeJSON, err := json.Marshal(&wakatime.JsonExportRange{
+		Start: from.Unix(),
+		End:   to.Unix(),
+	})
+	if err != nil {
+		return err
+	}
+
+	if _, err := io.WriteString(w, `{"range":`); err != nil {
+		return err
+	}
+	if _, err := w.Write(rangeJSON); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(w, `,"days":[`); err != nil {
+		return err
+	}
+
+	currentDay := ""
+	firstDay := true
+	firstHeartbeat := true
+
+	closeDay := func() error {
+		if currentDay == "" {
+			return nil
+		}
+		_, err := io.WriteString(w, "]}")
+		return err
+	}
+
+	err = srv.heartbeatService.StreamAllWithin(from, to, user, 1000, func(heartbeats []*models.Heartbeat) error {
+		for _, hb := range heartbeats {
+			entry := wakatime.HeartbeatToCompat(hb)
+			day := time.Unix(int64(entry.Time), 0).Format("2006-01-02")
+			if day != currentDay {
+				if err := closeDay(); err != nil {
+					return err
+				}
+				if !firstDay {
+					if _, err := io.WriteString(w, ","); err != nil {
+						return err
+					}
+				}
+				dateJSON, err := json.Marshal(day)
+				if err != nil {
+					return err
+				}
+				if _, err := io.WriteString(w, `{"date":`); err != nil {
+					return err
+				}
+				if _, err := w.Write(dateJSON); err != nil {
+					return err
+				}
+				if _, err := io.WriteString(w, `,"heartbeats":[`); err != nil {
+					return err
+				}
+				currentDay = day
+				firstDay = false
+				firstHeartbeat = true
+			}
+
+			if !firstHeartbeat {
+				if _, err := io.WriteString(w, ","); err != nil {
+					return err
+				}
+			}
+			entryJSON, err := json.Marshal(entry)
+			if err != nil {
+				return err
+			}
+			if _, err := w.Write(entryJSON); err != nil {
+				return err
+			}
+			firstHeartbeat = false
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to stream heartbeats: %w", err)
+	}
+
+	if err := closeDay(); err != nil {
+		return err
+	}
+
+	_, err = io.WriteString(w, "]}")
+	return err
+}
+
+func (srv *DataDumpService) refreshDownloadURL(dump *models.DataDump) {
+	if srv.objectStorageService == nil || dump == nil || dump.Expires == nil || dump.HasFailed || dump.IsProcessing {
+		return
+	}
+	if dump.Expires.Before(time.Now()) {
+		return
+	}
+
+	downloadURL, err := srv.objectStorageService.GetDownloadURL(dataDumpObjectKey(dump.UserID, dump.ID), *dump.Expires)
+	if err != nil {
+		config.Log().Error("failed to generate data dump download url", "dumpID", dump.ID, "error", err)
+		return
+	}
+	dump.DownloadUrl = downloadURL
+}
+
+func (srv *DataDumpService) deleteObject(dump *models.DataDump) error {
+	if srv.objectStorageService == nil || dump == nil {
+		return nil
+	}
+	return srv.objectStorageService.Delete(dataDumpObjectKey(dump.UserID, dump.ID))
+}
+
+func dataDumpObjectKey(userID, dumpID string) string {
+	return fmt.Sprintf("data_dumps/%s/%s.json", userID, dumpID)
+}
+
+func jsonReader(v interface{}) *io.PipeReader {
+	reader, writer := io.Pipe()
+	go func() {
+		err := json.NewEncoder(writer).Encode(v)
+		if err != nil {
+			_ = writer.CloseWithError(err)
+			return
+		}
+		_ = writer.Close()
+	}()
+	return reader
 }

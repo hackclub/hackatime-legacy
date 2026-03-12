@@ -21,6 +21,7 @@ type IHeartbeatRepository interface {
 	InsertBatch([]*models.Heartbeat) error
 	GetAll() ([]*models.Heartbeat, error)
 	GetAllWithin(time.Time, time.Time, *models.User) ([]*models.Heartbeat, error)
+	StreamAllWithin(time.Time, time.Time, *models.User, int, func([]*models.Heartbeat) error) error
 	GetAllWithinByFilters(time.Time, time.Time, *models.User, map[string][]string) ([]*models.Heartbeat, error)
 	GetLatestByFilters(*models.User, map[string][]string) (*models.Heartbeat, error)
 	GetFirstByUsers() ([]*models.TimeByUser, error)

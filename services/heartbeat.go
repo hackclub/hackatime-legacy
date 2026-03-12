@@ -144,6 +144,16 @@ func (srv *HeartbeatService) GetAllWithin(from, to time.Time, user *models.User)
 	return srv.augmented(heartbeats, user.ID)
 }
 
+func (srv *HeartbeatService) StreamAllWithin(from, to time.Time, user *models.User, batchSize int, fn func([]*models.Heartbeat) error) error {
+	return srv.repository.StreamAllWithin(from, to, user, batchSize, func(heartbeats []*models.Heartbeat) error {
+		augmented, err := srv.augmented(heartbeats, user.ID)
+		if err != nil {
+			return err
+		}
+		return fn(augmented)
+	})
+}
+
 func (srv *HeartbeatService) GetAllWithinByFilters(from, to time.Time, user *models.User, filters *models.Filters) ([]*models.Heartbeat, error) {
 	heartbeats, err := srv.repository.GetAllWithinByFilters(from, to, user, srv.filtersToColumnMap(filters))
 	if err != nil {

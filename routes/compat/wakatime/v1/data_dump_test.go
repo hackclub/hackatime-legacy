@@ -42,6 +42,14 @@ func (s *dataDumpServiceStub) CleanupExpired() error {
 	return nil
 }
 
+func (s *dataDumpServiceStub) MarkStuckDumps() error {
+	return nil
+}
+
+func (s *dataDumpServiceStub) DeleteByUser(userID string) error {
+	return nil
+}
+
 func TestDataDumpHandler_Errors(t *testing.T) {
 	config.Set(config.Empty())
 

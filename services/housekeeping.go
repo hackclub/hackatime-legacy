@@ -47,6 +47,13 @@ func (s *HousekeepingService) CleanUserDataBefore(user *models.User, before time
 		return nil
 	}
 
+	if s.dataDumpSrvc != nil {
+		slog.Info("clearing data dumps for user", "userID", user.ID)
+		if err := s.dataDumpSrvc.DeleteByUser(user.ID); err != nil {
+			return err
+		}
+	}
+
 	// clear old heartbeats
 	if err := s.heartbeatSrvc.DeleteByUserBefore(user, before); err != nil {
 		return err
@@ -191,9 +198,16 @@ func (s *HousekeepingService) scheduleInactiveUsersCleanup() {
 }
 
 func (s *HousekeepingService) scheduleDataDumpCleanup() {
+	if s.dataDumpSrvc == nil {
+		return
+	}
+
 	slog.Info("scheduling data dump cleanup")
 	_, err := s.queueDefault.DispatchCron(func() {
 		s.queueWorkers.Dispatch(func() {
+			if err := s.dataDumpSrvc.MarkStuckDumps(); err != nil {
+				config.Log().Error("failed to mark stuck data dumps", "error", err)
+			}
 			if err := s.dataDumpSrvc.CleanupExpired(); err != nil {
 				config.Log().Error("failed to clean up expired data dumps", "error", err)
 			}

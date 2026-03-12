@@ -249,7 +249,7 @@ func main() {
 
 	// MVC Handlers
 	summaryHandler := routes.NewSummaryHandler(summaryService, userService, keyValueService)
-	settingsHandler := routes.NewSettingsHandler(userService, heartbeatService, summaryService, aliasService, aggregationService, languageMappingService, projectLabelService, keyValueService, mailService)
+	settingsHandler := routes.NewSettingsHandler(userService, heartbeatService, summaryService, aliasService, aggregationService, dataDumpService, languageMappingService, projectLabelService, keyValueService, mailService)
 	subscriptionHandler := routes.NewSubscriptionHandler(userService, mailService, keyValueService)
 	projectsHandler := routes.NewProjectsHandler(userService, heartbeatService)
 	shopHandler := routes.NewShopHandler(userService, shopService)

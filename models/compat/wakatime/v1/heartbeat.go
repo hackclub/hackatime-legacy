@@ -43,32 +43,35 @@ type HeartbeatEntry struct {
 func HeartbeatsToCompat(entries []*models.Heartbeat) []*HeartbeatEntry {
 	out := make([]*HeartbeatEntry, len(entries))
 	for i := 0; i < len(entries); i++ {
-		entry := entries[i]
-		opSys, editor, _ := utils.ParseUserAgent(entry.UserAgent)
-		out[i] = &HeartbeatEntry{
-			Id:               strconv.FormatUint(entry.ID, 10),
-			Branch:           entry.Branch,
-			Category:         entry.Category,
-			Entity:           entry.Entity,
-			Editor:           editor,
-			OperatingSystem:  opSys,
-			IsWrite:          entry.IsWrite,
-			Language:         entry.Language,
-			Project:          entry.Project,
-			ProjectRootCount: entry.ProjectRootCount,
-			LineAdditions:    entry.LineAdditions,
-			LineDeletions:    entry.LineDeletions,
-			Lines:            entry.Lines,
-			LineNumber:       entry.LineNumber,
-			CursorPosition:   entry.CursorPosition,
-			Dependencies:     entry.Dependencies,
-			Time:             float64(entry.Time.T().Unix()),
-			Type:             entry.Type,
-			UserId:           entry.UserID,
-			MachineNameId:    entry.Machine,
-			UserAgentId:      entry.UserAgent,
-			CreatedAt:        entry.CreatedAt.T(),
-		}
+		out[i] = HeartbeatToCompat(entries[i])
 	}
 	return out
+}
+
+func HeartbeatToCompat(entry *models.Heartbeat) *HeartbeatEntry {
+	opSys, editor, _ := utils.ParseUserAgent(entry.UserAgent)
+	return &HeartbeatEntry{
+		Id:               strconv.FormatUint(entry.ID, 10),
+		Branch:           entry.Branch,
+		Category:         entry.Category,
+		Entity:           entry.Entity,
+		Editor:           editor,
+		OperatingSystem:  opSys,
+		IsWrite:          entry.IsWrite,
+		Language:         entry.Language,
+		Project:          entry.Project,
+		ProjectRootCount: entry.ProjectRootCount,
+		LineAdditions:    entry.LineAdditions,
+		LineDeletions:    entry.LineDeletions,
+		Lines:            entry.Lines,
+		LineNumber:       entry.LineNumber,
+		CursorPosition:   entry.CursorPosition,
+		Dependencies:     entry.Dependencies,
+		Time:             float64(entry.Time.T().Unix()),
+		Type:             entry.Type,
+		UserId:           entry.UserID,
+		MachineNameId:    entry.Machine,
+		UserAgentId:      entry.UserAgent,
+		CreatedAt:        entry.CreatedAt.T(),
+	}
 }

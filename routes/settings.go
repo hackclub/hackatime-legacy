@@ -36,6 +36,7 @@ type SettingsHandler struct {
 	heartbeatSrvc       services.IHeartbeatService
 	aliasSrvc           services.IAliasService
 	aggregationSrvc     services.IAggregationService
+	dataDumpSrvc        services.IDataDumpService
 	languageMappingSrvc services.ILanguageMappingService
 	projectLabelSrvc    services.IProjectLabelService
 	keyValueSrvc        services.IKeyValueService
@@ -63,6 +64,7 @@ func NewSettingsHandler(
 	summaryService services.ISummaryService,
 	aliasService services.IAliasService,
 	aggregationService services.IAggregationService,
+	dataDumpService services.IDataDumpService,
 	languageMappingService services.ILanguageMappingService,
 	projectLabelService services.IProjectLabelService,
 	keyValueService services.IKeyValueService,
@@ -73,6 +75,7 @@ func NewSettingsHandler(
 		summarySrvc:         summaryService,
 		aliasSrvc:           aliasService,
 		aggregationSrvc:     aggregationService,
+		dataDumpSrvc:        dataDumpService,
 		languageMappingSrvc: languageMappingService,
 		projectLabelSrvc:    projectLabelService,
 		userSrvc:            userService,
@@ -715,6 +718,13 @@ func (h *SettingsHandler) actionClearData(w http.ResponseWriter, r *http.Request
 	slog.Info("user requested to delete all data", "userID", user.ID)
 
 	go func(user *models.User) {
+		if h.dataDumpSrvc != nil {
+			slog.Info("deleting data dumps for user", "userID", user.ID)
+			if err := h.dataDumpSrvc.DeleteByUser(user.ID); err != nil {
+				conf.Log().Request(r).Error("failed to clear data dumps", "error", err)
+			}
+		}
+
 		slog.Info("deleting summaries for user", "userID", user.ID)
 		if err := h.summarySrvc.DeleteByUser(user.ID); err != nil {
 			conf.Log().Request(r).Error("failed to clear summaries", "error", err)
@@ -738,6 +748,12 @@ func (h *SettingsHandler) actionDeleteUser(w http.ResponseWriter, r *http.Reques
 	go func(user *models.User) {
 		slog.Info("deleting user shortly", "userID", user.ID)
 		time.Sleep(5 * time.Minute)
+		if h.dataDumpSrvc != nil {
+			slog.Info("deleting data dumps for user", "userID", user.ID)
+			if err := h.dataDumpSrvc.DeleteByUser(user.ID); err != nil {
+				conf.Log().Request(r).Error("failed to delete data dumps before account deletion", "userID", user.ID, "error", err)
+			}
+		}
 		if err := h.userSrvc.Delete(user); err != nil {
 			conf.Log().Request(r).Error("failed to delete user", "userID", user.ID, "error", err)
 		} else {

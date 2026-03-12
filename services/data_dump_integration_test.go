@@ -6,11 +6,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -101,6 +104,39 @@ func createTestHeartbeats(t *testing.T, db *gorm.DB, user *models.User, count in
 		hb = hb.Hashed()
 		require.NoError(t, db.Create(hb).Error)
 	}
+}
+
+type objectStorageServiceStub struct {
+	mu          sync.Mutex
+	uploads     map[string][]byte
+	deletedKeys []string
+}
+
+func (s *objectStorageServiceStub) Upload(key string, data io.Reader, contentType string) error {
+	body, err := io.ReadAll(data)
+	if err != nil {
+		return err
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.uploads == nil {
+		s.uploads = make(map[string][]byte)
+	}
+	s.uploads[key] = body
+	return nil
+}
+
+func (s *objectStorageServiceStub) GetDownloadURL(key string, expiresAt time.Time) (string, error) {
+	return fmt.Sprintf("https://signed.example/%s?expires=%d", key, expiresAt.Unix()), nil
+}
+
+func (s *objectStorageServiceStub) Delete(key string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.deletedKeys = append(s.deletedKeys, key)
+	delete(s.uploads, key)
+	return nil
 }
 
 func TestDataDumpRepository_Integration_CRUD(t *testing.T) {
@@ -235,7 +271,7 @@ func TestDataDumpRepository_Integration_ExpiredDumps(t *testing.T) {
 	assert.Equal(t, "expired-dump", expired[0].ID)
 }
 
-func TestDataDumpService_Integration_GetByUser_MarksStuck(t *testing.T) {
+func TestDataDumpService_Integration_MarkStuckDumps(t *testing.T) {
 	setupConfig(t)
 	db := setupTestDB(t)
 	repo := repositories.NewDataDumpRepository(db)
@@ -255,6 +291,9 @@ func TestDataDumpService_Integration_GetByUser_MarksStuck(t *testing.T) {
 		Expires:      &expires,
 	}
 	_, err := repo.Insert(oldDump)
+	require.NoError(t, err)
+
+	err = srv.MarkStuckDumps()
 	require.NoError(t, err)
 
 	dumps, err := srv.GetByUser(user.ID)
@@ -311,8 +350,9 @@ func TestDataDumpService_Integration_CleanupExpired(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repositories.NewDataDumpRepository(db)
 	createTestUser(t, db, "cleanup-user")
+	objectStorage := &objectStorageServiceStub{}
 
-	srv := NewDataDumpService(repo, nil, nil, nil)
+	srv := NewDataDumpService(repo, nil, nil, objectStorage)
 
 	now := time.Now()
 	pastExpires := now.Add(-1 * time.Hour)
@@ -337,6 +377,7 @@ func TestDataDumpService_Integration_CleanupExpired(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, dumps, 1)
 	assert.Equal(t, "active-1", dumps[0].ID)
+	assert.Equal(t, []string{dataDumpObjectKey("cleanup-user", "expired-1")}, objectStorage.deletedKeys)
 }
 
 func TestDataDumpService_Integration_FullExportWithGarage(t *testing.T) {
@@ -394,7 +435,16 @@ func TestDataDumpService_Integration_FullExportWithGarage(t *testing.T) {
 	assert.False(t, finalDump.HasFailed, "dump should not have failed")
 	assert.False(t, finalDump.IsStuck)
 	assert.NotEmpty(t, finalDump.DownloadUrl)
-	assert.Contains(t, finalDump.DownloadUrl, garageBucket)
+
+	downloadURL, err := url.Parse(finalDump.DownloadUrl)
+	require.NoError(t, err)
+	assert.NotEmpty(t, downloadURL.Query().Get("X-Amz-Algorithm"))
+	assert.NotEmpty(t, downloadURL.Query().Get("X-Amz-Signature"))
+
+	res, err := (&http.Client{Timeout: 10 * time.Second}).Get(finalDump.DownloadUrl)
+	require.NoError(t, err)
+	defer res.Body.Close()
+	assert.Equal(t, http.StatusOK, res.StatusCode)
 
 	s3Client := s3.New(s3.Options{
 		BaseEndpoint: aws.String(fmt.Sprintf("http://127.0.0.1:%s", garageS3Port)),

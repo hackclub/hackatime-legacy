@@ -39,6 +39,7 @@ type IHeartbeatService interface {
 	CountByUser(*models.User) (int64, error)
 	CountByUsers([]*models.User) ([]*models.CountByUser, error)
 	GetAllWithin(time.Time, time.Time, *models.User) ([]*models.Heartbeat, error)
+	StreamAllWithin(time.Time, time.Time, *models.User, int, func([]*models.Heartbeat) error) error
 	GetAllWithinByFilters(time.Time, time.Time, *models.User, *models.Filters) ([]*models.Heartbeat, error)
 	GetFirstByUsers() ([]*models.TimeByUser, error)
 	GetLatestByUser(*models.User) (*models.Heartbeat, error)
@@ -158,11 +159,15 @@ type IUserService interface {
 type IDataDumpService interface {
 	GetByUser(string) ([]*models.DataDump, error)
 	Create(user *models.User, dumpType string) (*models.DataDump, error)
+	MarkStuckDumps() error
 	CleanupExpired() error
+	DeleteByUser(string) error
 }
 
 type IObjectStorageService interface {
-	Upload(key string, data io.ReadSeeker, contentType string) (string, error)
+	Upload(key string, data io.Reader, contentType string) error
+	GetDownloadURL(key string, expiresAt time.Time) (string, error)
+	Delete(key string) error
 }
 
 type IShopService interface {

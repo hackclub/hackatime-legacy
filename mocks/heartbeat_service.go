@@ -42,6 +42,16 @@ func (m *HeartbeatServiceMock) GetAllWithin(time time.Time, time2 time.Time, use
 	return args.Get(0).([]*models.Heartbeat), args.Error(1)
 }
 
+func (m *HeartbeatServiceMock) StreamAllWithin(time time.Time, time2 time.Time, user *models.User, batchSize int, fn func([]*models.Heartbeat) error) error {
+	args := m.Called(time, time2, user, batchSize)
+	if heartbeats, ok := args.Get(0).([]*models.Heartbeat); ok && fn != nil {
+		if err := fn(heartbeats); err != nil {
+			return err
+		}
+	}
+	return args.Error(1)
+}
+
 func (m *HeartbeatServiceMock) GetAllWithinByFilters(time time.Time, time2 time.Time, user *models.User, filters *models.Filters) ([]*models.Heartbeat, error) {
 	args := m.Called(time, time2, user, filters)
 	return args.Get(0).([]*models.Heartbeat), args.Error(1)

@@ -100,6 +100,25 @@ func (r *HeartbeatRepository) GetAllWithin(from, to time.Time, user *models.User
 	return heartbeats, nil
 }
 
+func (r *HeartbeatRepository) StreamAllWithin(from, to time.Time, user *models.User, batchSize int, fn func([]*models.Heartbeat) error) error {
+	if batchSize <= 0 {
+		batchSize = 1000
+	}
+
+	var heartbeats []*models.Heartbeat
+	return r.db.
+		Where(&models.Heartbeat{UserID: user.ID}).
+		Where("time >= ?", from.Local()).
+		Where("time < ?", to.Local()).
+		Order("time asc, id asc").
+		FindInBatches(&heartbeats, batchSize, func(tx *gorm.DB, batch int) error {
+			if len(heartbeats) == 0 {
+				return nil
+			}
+			return fn(heartbeats)
+		}).Error
+}
+
 func (r *HeartbeatRepository) GetAllWithinByFilters(from, to time.Time, user *models.User, filterMap map[string][]string) ([]*models.Heartbeat, error) {
 	// https://stackoverflow.com/a/20765152/3112139
 	var heartbeats []*models.Heartbeat

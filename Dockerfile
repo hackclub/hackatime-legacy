@@ -1,4 +1,4 @@
-FROM golang:alpine AS build-env
+FROM golang:1.24-alpine AS build-env
 WORKDIR /src
 
 RUN wget "https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh" -O wait-for-it.sh && \

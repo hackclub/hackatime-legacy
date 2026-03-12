@@ -71,6 +71,7 @@ var (
 	keyValueRepository        repositories.IKeyValueRepository
 	diagnosticsRepository     repositories.IDiagnosticsRepository
 	metricsRepository         *repositories.MetricsRepository
+	dataDumpRepository        repositories.IDataDumpRepository
 )
 
 var (
@@ -91,6 +92,8 @@ var (
 	housekeepingService    services.IHousekeepingService
 	miscService            services.IMiscService
 	shopService            services.IShopService
+	objectStorageService   services.IObjectStorageService
+	dataDumpService        services.IDataDumpService
 )
 
 // TODO: Refactor entire project to be structured after business domains
@@ -178,6 +181,7 @@ func main() {
 	keyValueRepository = repositories.NewKeyValueRepository(db)
 	diagnosticsRepository = repositories.NewDiagnosticsRepository(db)
 	metricsRepository = repositories.NewMetricsRepository(db)
+	dataDumpRepository = repositories.NewDataDumpRepository(db)
 
 	// Services
 	mailService = mail.NewMailService()
@@ -193,9 +197,13 @@ func main() {
 	reportService = services.NewReportService(summaryService, userService, mailService)
 	activityService = services.NewActivityService(summaryService)
 	diagnosticsService = services.NewDiagnosticsService(diagnosticsRepository)
-	housekeepingService = services.NewHousekeepingService(userService, heartbeatService, summaryService)
 	miscService = services.NewMiscService(userService, heartbeatService, summaryService, keyValueService, mailService)
 	shopService = services.NewShopService()
+	if config.ObjectStorage.Enabled {
+		objectStorageService = services.NewObjectStorageService()
+	}
+	dataDumpService = services.NewDataDumpService(dataDumpRepository, heartbeatService, summaryService, objectStorageService)
+	housekeepingService = services.NewHousekeepingService(userService, heartbeatService, summaryService, dataDumpService)
 
 	if config.App.LeaderboardEnabled {
 		leaderboardService = services.NewLeaderboardService(leaderboardRepository, summaryService, userService)
@@ -236,11 +244,12 @@ func main() {
 	wakatimeV1ProjectsHandler := wtV1Routes.NewProjectsHandler(userService, heartbeatService)
 	wakatimeV1HeartbeatsHandler := wtV1Routes.NewHeartbeatHandler(userService, heartbeatService)
 	wakatimeV1LeadersHandler := wtV1Routes.NewLeadersHandler(userService, leaderboardService)
+	wakatimeV1DataDumpHandler := wtV1Routes.NewDataDumpHandler(userService, dataDumpService)
 	shieldV1BadgeHandler := shieldsV1Routes.NewBadgeHandler(summaryService, userService)
 
 	// MVC Handlers
 	summaryHandler := routes.NewSummaryHandler(summaryService, userService, keyValueService)
-	settingsHandler := routes.NewSettingsHandler(userService, heartbeatService, summaryService, aliasService, aggregationService, languageMappingService, projectLabelService, keyValueService, mailService)
+	settingsHandler := routes.NewSettingsHandler(userService, heartbeatService, summaryService, aliasService, aggregationService, dataDumpService, languageMappingService, projectLabelService, keyValueService, mailService)
 	subscriptionHandler := routes.NewSubscriptionHandler(userService, mailService, keyValueService)
 	projectsHandler := routes.NewProjectsHandler(userService, heartbeatService)
 	shopHandler := routes.NewShopHandler(userService, shopService)
@@ -333,6 +342,7 @@ func main() {
 	wakatimeV1ProjectsHandler.RegisterRoutes(apiRouter)
 	wakatimeV1HeartbeatsHandler.RegisterRoutes(apiRouter)
 	wakatimeV1LeadersHandler.RegisterRoutes(apiRouter)
+	wakatimeV1DataDumpHandler.RegisterRoutes(apiRouter)
 	shieldV1BadgeHandler.RegisterRoutes(apiRouter)
 	captchaHandler.RegisterRoutes(apiRouter)
 	redirectHandler.RegisterRoutes(apiRouter)

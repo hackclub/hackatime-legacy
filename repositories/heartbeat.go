@@ -100,6 +100,47 @@ func (r *HeartbeatRepository) GetAllWithin(from, to time.Time, user *models.User
 	return heartbeats, nil
 }
 
+func (r *HeartbeatRepository) StreamAllWithin(from, to time.Time, user *models.User, batchSize int, fn func([]*models.Heartbeat) error) error {
+	if batchSize <= 0 {
+		batchSize = 1000
+	}
+
+	rows, err := r.db.Model(&models.Heartbeat{}).
+		Where(&models.Heartbeat{UserID: user.ID}).
+		Where("time >= ?", from.Local()).
+		Where("time < ?", to.Local()).
+		Order("time asc, id asc").
+		Rows()
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	batch := make([]*models.Heartbeat, 0, batchSize)
+	for rows.Next() {
+		var heartbeat models.Heartbeat
+		if err := r.db.ScanRows(rows, &heartbeat); err != nil {
+			return err
+		}
+
+		batch = append(batch, &heartbeat)
+		if len(batch) < batchSize {
+			continue
+		}
+
+		if err := fn(batch); err != nil {
+			return err
+		}
+		batch = batch[:0]
+	}
+
+	if len(batch) > 0 {
+		return fn(batch)
+	}
+
+	return nil
+}
+
 func (r *HeartbeatRepository) GetAllWithinByFilters(from, to time.Time, user *models.User, filterMap map[string][]string) ([]*models.Heartbeat, error) {
 	// https://stackoverflow.com/a/20765152/3112139
 	var heartbeats []*models.Heartbeat

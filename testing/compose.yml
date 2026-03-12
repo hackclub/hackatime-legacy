@@ -40,3 +40,9 @@ services:
             SA_PASSWORD: 'Hard!password123'
             MSSQL_PID: 'Developer'
         network_mode: host
+
+    garage:
+        image: dxflrs/garage:v1.0.1
+        volumes:
+            - ./garage.toml:/etc/garage.toml:ro
+        network_mode: host

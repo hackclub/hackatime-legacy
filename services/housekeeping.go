@@ -16,16 +16,18 @@ type HousekeepingService struct {
 	userSrvc      IUserService
 	heartbeatSrvc IHeartbeatService
 	summarySrvc   ISummaryService
+	dataDumpSrvc  IDataDumpService
 	queueDefault  *artifex.Dispatcher
 	queueWorkers  *artifex.Dispatcher
 }
 
-func NewHousekeepingService(userService IUserService, heartbeatService IHeartbeatService, summaryService ISummaryService) *HousekeepingService {
+func NewHousekeepingService(userService IUserService, heartbeatService IHeartbeatService, summaryService ISummaryService, dataDumpService IDataDumpService) *HousekeepingService {
 	return &HousekeepingService{
 		config:        config.Get(),
 		userSrvc:      userService,
 		heartbeatSrvc: heartbeatService,
 		summarySrvc:   summaryService,
+		dataDumpSrvc:  dataDumpService,
 		queueDefault:  config.GetDefaultQueue(),
 		queueWorkers:  config.GetQueue(config.QueueHousekeeping),
 	}
@@ -35,6 +37,7 @@ func (s *HousekeepingService) Schedule() {
 	s.scheduleDataCleanups()
 	s.scheduleInactiveUsersCleanup()
 	s.scheduleProjectStatsCacheWarming()
+	s.scheduleDataDumpCleanup()
 }
 
 func (s *HousekeepingService) CleanUserDataBefore(user *models.User, before time.Time) error {
@@ -42,6 +45,13 @@ func (s *HousekeepingService) CleanUserDataBefore(user *models.User, before time
 	if s.config.App.DataCleanupDryRun {
 		slog.Info("skipping actual data deletion for dry run", "userID", user.ID)
 		return nil
+	}
+
+	if s.dataDumpSrvc != nil {
+		slog.Info("clearing data dumps for user", "userID", user.ID)
+		if err := s.dataDumpSrvc.DeleteByUser(user.ID); err != nil {
+			return err
+		}
 	}
 
 	// clear old heartbeats
@@ -184,6 +194,27 @@ func (s *HousekeepingService) scheduleInactiveUsersCleanup() {
 	_, err := s.queueDefault.DispatchCron(s.runCleanInactiveUsers, s.config.App.DataCleanupTime)
 	if err != nil {
 		config.Log().Error("failed to dispatch inactive users cleanup job", "error", err)
+	}
+}
+
+func (s *HousekeepingService) scheduleDataDumpCleanup() {
+	if s.dataDumpSrvc == nil {
+		return
+	}
+
+	slog.Info("scheduling data dump cleanup")
+	_, err := s.queueDefault.DispatchCron(func() {
+		s.queueWorkers.Dispatch(func() {
+			if err := s.dataDumpSrvc.MarkStuckDumps(); err != nil {
+				config.Log().Error("failed to mark stuck data dumps", "error", err)
+			}
+			if err := s.dataDumpSrvc.CleanupExpired(); err != nil {
+				config.Log().Error("failed to clean up expired data dumps", "error", err)
+			}
+		})
+	}, s.config.App.DataCleanupTime)
+	if err != nil {
+		config.Log().Error("failed to schedule data dump cleanup", "error", err)
 	}
 }
 

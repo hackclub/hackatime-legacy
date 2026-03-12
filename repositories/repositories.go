@@ -21,6 +21,7 @@ type IHeartbeatRepository interface {
 	InsertBatch([]*models.Heartbeat) error
 	GetAll() ([]*models.Heartbeat, error)
 	GetAllWithin(time.Time, time.Time, *models.User) ([]*models.Heartbeat, error)
+	StreamAllWithin(time.Time, time.Time, *models.User, int, func([]*models.Heartbeat) error) error
 	GetAllWithinByFilters(time.Time, time.Time, *models.User, map[string][]string) ([]*models.Heartbeat, error)
 	GetLatestByFilters(*models.User, map[string][]string) (*models.Heartbeat, error)
 	GetFirstByUsers() ([]*models.TimeByUser, error)
@@ -89,6 +90,17 @@ type IUserRepository interface {
 	Update(*models.User) (*models.User, error)
 	UpdateField(*models.User, string, interface{}) (*models.User, error)
 	Delete(*models.User) error
+}
+
+type IDataDumpRepository interface {
+	Insert(*models.DataDump) (*models.DataDump, error)
+	Update(*models.DataDump) (*models.DataDump, error)
+	GetByUser(string) ([]*models.DataDump, error)
+	GetById(string) (*models.DataDump, error)
+	GetStuckDumps(threshold time.Time) ([]*models.DataDump, error)
+	GetExpiredDumps() ([]*models.DataDump, error)
+	Delete(id string) error
+	DeleteByUser(string) error
 }
 
 type ILeaderboardRepository interface {

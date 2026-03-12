@@ -114,3 +114,11 @@ shop:
     airtable_api_key:
     airtable_base_id:
     airtable_product_table_name:
+
+object_storage:
+    enabled: false
+    endpoint:
+    region: auto
+    bucket:
+    access_key_id:
+    secret_access_key:

@@ -91,6 +91,17 @@ type IUserRepository interface {
 	Delete(*models.User) error
 }
 
+type IDataDumpRepository interface {
+	Insert(*models.DataDump) (*models.DataDump, error)
+	Update(*models.DataDump) (*models.DataDump, error)
+	GetByUser(string) ([]*models.DataDump, error)
+	GetById(string) (*models.DataDump, error)
+	GetStuckDumps(threshold time.Time) ([]*models.DataDump, error)
+	GetExpiredDumps() ([]*models.DataDump, error)
+	Delete(id string) error
+	DeleteByUser(string) error
+}
+
 type ILeaderboardRepository interface {
 	InsertBatch([]*models.LeaderboardItem) error
 	CountAllByUser(string) (int64, error)

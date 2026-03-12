@@ -200,6 +200,15 @@ type shopConfig struct {
 	AirtableProductTableName string `env:"WAKAPI_SHOP_AIRTABLE_PRODUCT_TABLE_NAME"`
 }
 
+type objectStorageConfig struct {
+	Enabled         bool   `yaml:"enabled" default:"false" env:"WAKAPI_OBJECT_STORAGE_ENABLED"`
+	Endpoint        string `yaml:"endpoint" env:"WAKAPI_OBJECT_STORAGE_ENDPOINT"`
+	Region          string `yaml:"region" default:"auto" env:"WAKAPI_OBJECT_STORAGE_REGION"`
+	Bucket          string `yaml:"bucket" env:"WAKAPI_OBJECT_STORAGE_BUCKET"`
+	AccessKeyId     string `yaml:"access_key_id" env:"WAKAPI_OBJECT_STORAGE_ACCESS_KEY_ID"`
+	SecretAccessKey string `yaml:"secret_access_key" env:"WAKAPI_OBJECT_STORAGE_SECRET_ACCESS_KEY"`
+}
+
 type Config struct {
 	Env            string `default:"dev" env:"ENVIRONMENT"`
 	Version        string `yaml:"-"`
@@ -215,6 +224,7 @@ type Config struct {
 	Sentry         sentryConfig
 	Mail           mailConfig
 	Shop           shopConfig
+	ObjectStorage  objectStorageConfig `yaml:"object_storage"`
 }
 
 func (c *Config) CreateCookie(name, value string) *http.Cookie {

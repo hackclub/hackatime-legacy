@@ -1,6 +1,7 @@
 package services
 
 import (
+	"io"
 	"time"
 
 	datastructure "github.com/duke-git/lancet/v2/datastructure/set"
@@ -152,6 +153,16 @@ type IUserService interface {
 	GenerateResetToken(*models.User) (*models.User, error)
 	FlushCache()
 	FlushUserCache(string)
+}
+
+type IDataDumpService interface {
+	GetByUser(string) ([]*models.DataDump, error)
+	Create(user *models.User, dumpType string) (*models.DataDump, error)
+	CleanupExpired() error
+}
+
+type IObjectStorageService interface {
+	Upload(key string, data io.ReadSeeker, contentType string) (string, error)
 }
 
 type IShopService interface {

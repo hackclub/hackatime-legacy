@@ -39,6 +39,7 @@ func GetMigrationFunc(cfg *config.Config) gormMigrationFunc {
 				&models.ProjectLabel{},
 				&models.Diagnostics{},
 				&models.LeaderboardItem{},
+				&models.DataDump{},
 			}
 
 			for _, model := range models {

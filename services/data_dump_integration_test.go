@@ -106,6 +106,21 @@ func createTestHeartbeats(t *testing.T, db *gorm.DB, user *models.User, count in
 	}
 }
 
+func createTestHeartbeatAt(t *testing.T, db *gorm.DB, user *models.User, entity string, at time.Time) *models.Heartbeat {
+	t.Helper()
+	hb := (&models.Heartbeat{
+		UserID:   user.ID,
+		Entity:   entity,
+		Type:     "file",
+		Category: "coding",
+		Project:  "test-project",
+		Language: "Go",
+		Time:     models.CustomTime(at),
+	}).Hashed()
+	require.NoError(t, db.Create(hb).Error)
+	return hb
+}
+
 type objectStorageServiceStub struct {
 	mu          sync.Mutex
 	uploads     map[string][]byte
@@ -190,6 +205,40 @@ func TestDataDumpRepository_Integration_CRUD(t *testing.T) {
 	dumps, err = repo.GetByUser("repo-test-user")
 	require.NoError(t, err)
 	assert.Len(t, dumps, 0)
+}
+
+func TestHeartbeatRepository_Integration_StreamAllWithin_RespectsTimeOrderAcrossOutOfOrderIDs(t *testing.T) {
+	setupConfig(t)
+	db := setupTestDB(t)
+	repo := repositories.NewHeartbeatRepository(db)
+	user := createTestUser(t, db, "stream-user")
+
+	base := time.Now().Add(-6 * time.Hour).Round(time.Second)
+	middle := createTestHeartbeatAt(t, db, user, "middle.go", base.Add(2*time.Hour))
+	latest := createTestHeartbeatAt(t, db, user, "latest.go", base.Add(3*time.Hour))
+	earliest := createTestHeartbeatAt(t, db, user, "earliest.go", base.Add(1*time.Hour))
+
+	require.True(t, earliest.ID > latest.ID)
+	require.True(t, latest.ID > middle.ID)
+
+	var streamed []*models.Heartbeat
+	err := repo.StreamAllWithin(base, base.Add(4*time.Hour), user, 1, func(batch []*models.Heartbeat) error {
+		streamed = append(streamed, batch...)
+		return nil
+	})
+	require.NoError(t, err)
+	require.Len(t, streamed, 3)
+
+	assert.Equal(t, []string{"earliest.go", "middle.go", "latest.go"}, []string{
+		streamed[0].Entity,
+		streamed[1].Entity,
+		streamed[2].Entity,
+	})
+	assert.Equal(t, []uint64{earliest.ID, middle.ID, latest.ID}, []uint64{
+		streamed[0].ID,
+		streamed[1].ID,
+		streamed[2].ID,
+	})
 }
 
 func TestDataDumpRepository_Integration_StuckDumps(t *testing.T) {

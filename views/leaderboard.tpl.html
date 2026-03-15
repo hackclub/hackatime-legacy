@@ -9,6 +9,8 @@
 
 <body class="relative bg-background dark:bg-background-dark text-text-primary dark:text-text-dark-primary p-4 pt-10 flex flex-col min-h-screen mx-auto justify-center">
 
+{{ template "banner.tpl.html" . }}
+
 {{ template "alerts.tpl.html" . }}
 
 {{ if .User }}

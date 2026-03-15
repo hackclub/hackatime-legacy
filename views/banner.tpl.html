@@ -1,20 +1,112 @@
-<div style="width: 100%; background-color: #fefce8; border-bottom: 2px solid #facc15; padding: 0.75rem 1rem;">
-    <div style="max-width: 1280px; margin: 0 auto; display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem;">
-        <div style="display: flex; align-items: center; gap: 0.75rem; flex: 1; min-width: 0;">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#ca8a04" width="24" height="24" style="flex-shrink: 0;">
-                <path fill-rule="evenodd" d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003ZM12 8.25a.75.75 0 0 1 .75.75v3.75a.75.75 0 0 1-1.5 0V9a.75.75 0 0 1 .75-.75Zm0 8.25a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z" clip-rule="evenodd" />
+<style>
+    .legacy-banner {
+        background-color: #ec3750;
+        border-bottom: 2px solid #c72e43;
+        padding: 0.75rem 1rem;
+        position: relative;
+        z-index: 1;
+        margin: -2.5rem -1rem 1rem -1rem;
+    }
+    .legacy-banner-inner {
+        max-width: 1280px;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem 1rem;
+    }
+    .legacy-banner-text {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        flex: 1;
+        min-width: 0;
+    }
+    .legacy-banner-buttons {
+        display: flex;
+        gap: 0.5rem;
+        flex-shrink: 0;
+    }
+    @media (max-width: 768px) {
+        .legacy-banner-inner {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        .legacy-banner-buttons {
+            flex-direction: column;
+        }
+    }
+</style>
+<div class="legacy-banner">
+    <div class="legacy-banner-inner">
+        <div class="legacy-banner-text">
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="#fff"
+                width="24"
+                height="24"
+                style="flex-shrink: 0; margin-top: 2px"
+            >
+                <path
+                    fill-rule="evenodd"
+                    d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003ZM12 8.25a.75.75 0 0 1 .75.75v3.75a.75.75 0 0 1-1.5 0V9a.75.75 0 0 1 .75-.75Zm0 8.25a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z"
+                    clip-rule="evenodd"
+                />
             </svg>
-            <p style="font-size: 0.875rem; color: #713f12; font-weight: 500; margin: 0;">
-                <strong>waka.hackclub.com</strong> is no longer supported; please migrate to <strong>hackatime.hackclub.com</strong>
+            <p
+                style="
+                    font-size: 0.875rem;
+                    color: #fff;
+                    font-weight: 500;
+                    margin: 0;
+                "
+            >
+                <strong>waka.hackclub.com</strong> is no longer supported. This
+                site will stay up, but no support will be provided. Please
+                migrate to <strong>hackatime.hackclub.com</strong>. If you're
+                still using this site because v2 is missing features, click
+                "Missing something?"
             </p>
         </div>
-        <a
-            href="https://forms.hackclub.com/hackatime"
-            target="_blank"
-            rel="noopener noreferrer"
-            style="font-size: 0.875rem; font-weight: 600; color: #713f12; background-color: #fef08a; padding: 0.5rem 1rem; border-radius: 0.25rem; border: 1px solid #facc15; text-decoration: none; white-space: nowrap; flex-shrink: 0;"
-        >
-            Missing something in Hackatime v2?
-        </a>
+        <div class="legacy-banner-buttons">
+            <a
+                href="https://hackatime.hackclub.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                style="
+                    font-size: 0.875rem;
+                    font-weight: 600;
+                    color: #ec3750;
+                    background-color: #fff;
+                    padding: 0.5rem 1rem;
+                    border-radius: 0.25rem;
+                    border: 1px solid rgba(255, 255, 255, 0.3);
+                    text-decoration: none;
+                    white-space: nowrap;
+                    text-align: center;
+                "
+            >
+                Go to Hackatime v2
+            </a>
+            <a
+                href="https://forms.hackclub.com/hackatime"
+                target="_blank"
+                rel="noopener noreferrer"
+                style="
+                    font-size: 0.875rem;
+                    font-weight: 600;
+                    color: #fff;
+                    background-color: rgba(0, 0, 0, 0.2);
+                    padding: 0.5rem 1rem;
+                    border-radius: 0.25rem;
+                    border: 1px solid rgba(255, 255, 255, 0.3);
+                    text-decoration: none;
+                    white-space: nowrap;
+                    text-align: center;
+                "
+            >
+                Missing something?
+            </a>
+        </div>
     </div>
 </div>

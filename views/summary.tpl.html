@@ -9,6 +9,7 @@
     <body
         class="relative bg-background dark:bg-background-dark text-text-primary dark:text-text-dark-primary p-4 pt-10 flex flex-col min-h-screen mx-auto"
     >
+        {{ template "banner.tpl.html" . }}
         {{ template "menu-main.tpl.html" . }} {{ template "alerts.tpl.html" . }}
         {{ template "time-picker.tpl.html" . }} {{ template
         "entity-filter.tpl.html" . }} {{ if

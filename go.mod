@@ -7,13 +7,17 @@ require (
 	github.com/ajstarks/svgo v0.0.0-20211024235047-1546f124cd8b
 	github.com/alexedwards/argon2id v1.0.0
 	github.com/alitto/pond v1.9.2
+	github.com/aws/aws-sdk-go-v2 v1.41.3
+	github.com/aws/aws-sdk-go-v2/credentials v1.19.11
+	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.22.6
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.96.4
 	github.com/dchest/captcha v1.0.0
 	github.com/duke-git/lancet/v2 v2.3.2
 	github.com/emersion/go-sasl v0.0.0-20231106173351-e73c9f7bad43
 	github.com/emersion/go-smtp v0.21.3
 	github.com/getsentry/sentry-go v0.28.1
 	github.com/glebarez/sqlite v1.11.0
-	github.com/go-chi/chi/v5 v5.1.0
+	github.com/go-chi/chi/v5 v5.2.2
 	github.com/go-chi/cors v1.2.1
 	github.com/go-chi/httprate v0.14.1
 	github.com/gofrs/uuid/v5 v5.3.0
@@ -45,10 +49,7 @@ require (
 )
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.41.3 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.6 // indirect
-	github.com/aws/aws-sdk-go-v2/credentials v1.19.11 // indirect
-	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.22.6 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.19 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.19 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.20 // indirect
@@ -56,7 +57,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.9.11 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.19 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.19 // indirect
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.96.4 // indirect
 	github.com/aws/smithy-go v1.24.2 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 )
